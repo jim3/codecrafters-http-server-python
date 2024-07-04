@@ -20,7 +20,7 @@ def main():
                 split_str = request_line.split(' ') # -> list[str]
                 if(split_str[1] != '/'):
                     conn.sendall(res404)
-                elif(split_str[1]=='/'):
+                elif(split_str[1] == '/'):
                     conn.sendall(res202)
                 else:
                     None
