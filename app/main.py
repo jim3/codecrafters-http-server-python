@@ -1,49 +1,67 @@
 import socket
+import re
 
 def main():
-	print("Logs from your program will appear here!")
-	server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+    print("Logs from your program will appear here!")
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
 
-	while True:
-		try:
-			conn, client_address = server_socket.accept()
-			print(f"Connection from {client_address} has been established.")
+    while True:
+        try:
+            conn, client_address = server_socket.accept()
+            print(f"Connection from {client_address} has been established.")
+            recv_data = conn.recv(1024)
+            http_request = recv_data.decode('utf-8').splitlines() # -> list[str]
+            print(f"HTTP Request: {http_request}")
 
-			status_line = b"HTTP/1.1 200 OK\r\n\r\n"
-			res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
-			
-			content_type = b"Content-Type: text/plain\r\n"
-			
+            # Extract the request path from the request line
+            request_line = http_request[0]
+            print(f"Request Line: {request_line}")
+            split_str = request_line.split(' ')
 
-			recv_data = conn.recv(1024)
-			http_request = recv_data.decode('utf-8').splitlines() # -> list[str]
-			print("printing http_request: ", http_request)
-			
-			for i,v in enumerate(http_request):
-				print(http_request[i])
-				print(len(http_request[i]))
+            # if len(split_str) < 2:
+            #     continue
+            path= split_str[1]
 
-			# request_line = http_request[0]
-			# print("printing request_line: ", request_line)
+            # responses 200/404
+            res200 = b"HTTP/1.1 200 OK\r\n\r\n"
+            res404 = b"HTTP/1.1 404 OK\r\n\r\n"
 
-			# for i,v in enumerate(http_request):
-			# 	print(i, v)
-			# 	print("loop: ", http_request[i])
-			
-			# for v in request_line:
-			# 	split_str = request_line.split(' ') # -> list[str]
-			# 	if(split_str[1] != '/'):
-			# 		conn.sendall(res404)
-			# 	elif(split_str[1] == '/'):
-			# 		conn.sendall(status_line)
-			# 	else:
-			
-			# 		None
-			
 
-		finally:
-			conn.close()
-			print(f"Connection from {client_address} has been closed.")
+            # --------------------------------------------- #
+
+            if path == '/':
+                conn.sendall(res200)
+            elif path.startswith('/echo/'):    
+                pattern = r"/echo/(\S+)"
+                match = re.search(pattern, request_line)
+
+                if match:
+                    str_result = match.group(1)
+                    print(f"Match found: {str_result}")
+
+                    # Gather all of our responses
+                    response_body = f"{str_result}".encode('utf-8')  # Encode response_body to bytes
+                    status_line = b"HTTP/1.1 200 OK\r\n"
+                    content_type = b"Content-Type: text/plain\r\n"
+                    content_length = f"Content-Length: {len(response_body)}\r\n".encode('utf-8')
+
+                    # Create the header response
+                    response_headers = (content_type + content_length)
+                    
+                    # Create the response
+                    response = status_line + response_headers + b"\r\n" + response_body
+                    
+                    # send the response back to the client
+                    conn.sendall(response)
+                else:
+                    conn.sendall(res404)
+            else:
+                conn.sendall(res404)
+        except Exception as e:
+            print(f"An error occurred: {e}")            
+        finally:
+            conn.close()
+            print(f"Connection from {client_address} has been closed.")
 
 if __name__ == "__main__":
-	main
+    main()
