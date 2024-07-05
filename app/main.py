@@ -3,6 +3,10 @@ import socket
 import re
 
 
+def content_response(content, content_type="text/plain", code=200):
+    return f"HTTP/1.1 {code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {len(content)}\r\n\r\n{content}"
+
+
 def main():
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
 
