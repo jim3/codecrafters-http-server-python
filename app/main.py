@@ -18,13 +18,14 @@ def main():
             print(f"Request Line: {request_line}")
             split_str = request_line.split(' ')
 
-            # if len(split_str) < 2:
-            #     continue
+            if len(split_str) < 2:
+                continue
+
             path= split_str[1]
 
             # responses 200/404
             res200 = b"HTTP/1.1 200 OK\r\n\r\n"
-            res404 = b"HTTP/1.1 404 OK\r\n\r\n"
+            res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
             # --------------------------------------------- #
