@@ -27,8 +27,6 @@ def main():
             res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
-            # --------------------------------------------- #
-
             if path == '/':
                 conn.sendall(res200)
             elif path.startswith('/echo/'):    
