@@ -20,7 +20,6 @@ def main():
 
             if len(split_str) < 2:
                 continue
-
             path= split_str[1]
 
             # responses 200/404
@@ -41,7 +40,7 @@ def main():
                     print(f"Match found: {str_result}")
 
                     # Gather all of our responses
-                    response_body = f"{str_result}".encode('utf-8')  # Encode response_body to bytes
+                    response_body = f"{str_result}".encode('utf-8') # Encode response_body to utf-8 bytes
                     status_line = b"HTTP/1.1 200 OK\r\n"
                     content_type = b"Content-Type: text/plain\r\n"
                     content_length = f"Content-Length: {len(response_body)}\r\n".encode('utf-8')
