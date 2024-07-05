@@ -11,46 +11,34 @@ def main():
             print(f"Connection from {client_address} has been established.")
             recv_data = conn.recv(1024)
             http_request = recv_data.decode('utf-8').splitlines() # -> list[str]
-            print(f"HTTP Request: {http_request}")
-
             # Extract the request path from the request line
             request_line = http_request[0]
-            print(f"Request Line: {request_line}")
             split_str = request_line.split(' ')
 
             if len(split_str) < 2:
                 continue
-            path= split_str[1]
 
-            # responses 200/404
+            path= split_str[1]
             res200 = b"HTTP/1.1 200 OK\r\n\r\n"
             res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
-
-
-            # --------------------------------------------- #
 
             if path == '/':
                 conn.sendall(res200)
             elif path.startswith('/echo/'):    
                 pattern = r"/echo/(\S+)"
                 match = re.search(pattern, request_line)
-
                 if match:
                     str_result = match.group(1)
                     print(f"Match found: {str_result}")
-
                     # Gather all of our responses
                     response_body = f"{str_result}".encode('utf-8') # Encode response_body to utf-8 bytes
                     status_line = b"HTTP/1.1 200 OK\r\n"
                     content_type = b"Content-Type: text/plain\r\n"
                     content_length = f"Content-Length: {len(response_body)}\r\n".encode('utf-8')
-
                     # Create the header response
-                    response_headers = (content_type + content_length)
-                    
+                    response_headers = (content_type + content_length)                   
                     # Create the response
-                    response = status_line + response_headers + b"\r\n" + response_body
-                    
+                    response = status_line + response_headers + b"\r\n" + response_body                   
                     # send the response back to the client
                     conn.sendall(response)
                 else:
