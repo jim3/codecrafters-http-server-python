@@ -3,7 +3,7 @@ import socket
 import re
 
 
-def content_response(content, content_type="text/plain", code=200):
+def server_response(content, content_type="text/plain", code=200):
     return f"HTTP/1.1 {code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {len(content)}\r\n\r\n{content}"
 
 
@@ -12,20 +12,11 @@ def main():
 
     while True:
         try:
-            conn, client_address = (
-                server_socket.accept()
-            )  # Wait for an incoming connection
+            # Wait for an incoming connection
+            conn, client_address = server_socket.accept()
             print(f"Connection from {client_address} has been established...")
-
-            try:
-                recv_data = conn.recv(
-                    1024
-                )  # receive data from the socket -> bytes object
-                http_request = recv_data.decode(
-                    "utf-8"
-                ).splitlines()  # decode bytes into a string -> list[str]
-            except UnicodeDecodeError:
-                print(f"Error decoding data from client {client_address}")
+            recv_data = conn.recv(1024)
+            http_request = recv_data.decode("utf-8").splitlines()  #  -> list[str]
 
             # Extract the request path
             request_line = http_request[0]
@@ -48,23 +39,18 @@ def main():
                 if match:
                     str_result = match.group(1)  # print(f"Match found: {str_result}")
 
-                    # Gather all of our responses
-                    response_body = f"{str_result}".encode(
-                        "utf-8"
-                    )  # Encode response_body to utf-8 bytes
+                    # Gather all of the responses
+                    response_body = f"{str_result}".encode("utf-8")
                     status_line = b"HTTP/1.1 200 OK\r\n"
                     content_type = b"Content-Type: text/plain\r\n"
                     content_length = f"Content-Length: {len(response_body)}\r\n".encode(
                         "utf-8"
                     )
-                    response_headers = (
-                        content_type + content_length
-                    )  # Create the header response
-                    response = (
-                        status_line + response_headers + b"\r\n" + response_body
-                    )  # Create the response
 
-                    # send the response back to the client
+                    # Create the header response
+                    response_headers = content_type + content_length
+                    response = status_line + response_headers + b"\r\n" + response_body
+
                     conn.sendall(response)
                 else:
                     conn.sendall(res404)
