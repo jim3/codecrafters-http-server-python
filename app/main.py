@@ -69,11 +69,13 @@ def response(str_result):
 
 def main():
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+    print("Server is listening on port 4221...")
 
     while True:
         conn, client_address = server_socket.accept()
+        print(f"Connection from {client_address} has been established.")
         handle_connection(conn, client_address)
-        conn.close()  # should this be the only place for `conn.close`?
+        conn.close()
 
 
 if __name__ == "__main__":
