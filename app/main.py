@@ -8,17 +8,15 @@ ENC = "utf-8"
 def handle_connection(conn, client_address):
     print(f"Connection from {client_address} has been established...")
     data = conn.recv(BUFF_SZ)
-    http_request = data.decode(ENC)
+    # http_request = data.decode(ENC)
+    http_request: list[str] = data.decode(ENC).splitlines()  # Specify type as list[str]
     print(f"Request from {client_address}:\n{http_request}")
-    # http_method, path, user_agent, body = parse_request(request)
 
     # call parse_request
     response = parse_request(conn, http_request)
-
-    conn.sendall(response().encode(ENC))
+    print("value of response variable ->", response)
+    # conn.sendall(response().encode(ENC))
     conn.close()
-    # PARSE THE REQUEST
-    # response = parse_request(conn, http_request)
 
     # SEND RESPONSE TO main FUNCTION
     # send_response_back(responose)
@@ -26,16 +24,17 @@ def handle_connection(conn, client_address):
 
 def parse_request(conn, http_request):
     print("Value of http_request: ", http_request)
+    # ['GET /user-agent HTTP/1.1', 'Host: localhost:4221', 'User-Agent: orange/grape-orange', '']
+
     res200 = b"HTTP/1.1 200 OK\r\n\r\n"
     res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
-    # request_line = http_request[0]  # get 1st element
-    # split_str = request_line.split(" ")
-    # path = split_str[1]  # use split to get `/` root path
     request_line = http_request[0]  # get 1st element
+    print("request_line value: ", request_line)
+
     split_str = request_line.split(" ")
     print("split_str: ", split_str)
-    path = split_str[0]  # use split to get `/` root path
+    path = split_str[1]  # use split to get `/` root path
 
     if path == "/":
         conn.sendall(res200)
@@ -45,9 +44,12 @@ def parse_request(conn, http_request):
         if match:
             str_result = match.group(1)  # print(f"Match found: {str_result}")
             return str_result
-        else:
-            conn.sendall(res404)
-        conn.close()
+    elif path.startswith("/user-agent"):
+        print("we got user-agent!!!!")
+
+    else:
+        conn.sendall(res404)
+    conn.close()
 
 
 def response(str_result):
@@ -71,6 +73,7 @@ def main():
     while True:
         conn, client_address = server_socket.accept()
         handle_connection(conn, client_address)
+        conn.close()  # should this be the only place for `conn.close`?
 
 
 if __name__ == "__main__":
