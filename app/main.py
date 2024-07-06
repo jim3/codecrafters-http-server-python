@@ -5,66 +5,58 @@ BUFF_SZ = 1024
 ENC = "utf-8"
 
 
-def handle_connection(conn, client_address):
-    print(f"Connection from {client_address} has been established...")
-    data = conn.recv(BUFF_SZ)
-    # http_request = data.decode(ENC)
-    http_request: list[str] = data.decode(ENC).splitlines()  # Specify type as list[str]
-    print(f"Request from {client_address}:\n{http_request}")
-
-    # call parse_request
-    response = parse_request(conn, http_request)
-    print("value of response variable ->", response)
-    # conn.sendall(response().encode(ENC))
-    conn.close()
-
-    # SEND RESPONSE TO main FUNCTION
-    # send_response_back(responose)
-
-
 def parse_request(conn, http_request):
-    print("Value of http_request: ", http_request)
-    # ['GET /user-agent HTTP/1.1', 'Host: localhost:4221', 'User-Agent: orange/grape-orange', '']
+    request_line = http_request[0]
+    headers = http_request[1:-2]
 
-    res200 = b"HTTP/1.1 200 OK\r\n\r\n"
-    res404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
+    RES200 = b"HTTP/1.1 200 OK\r\n\r\n"
+    RES404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
-    request_line = http_request[0]  # get 1st element
-    print("request_line value: ", request_line)
-
-    split_str = request_line.split(" ")
-    print("split_str: ", split_str)
-    path = split_str[1]  # use split to get `/` root path
-
-    if path == "/":
-        conn.sendall(res200)
-    elif path.startswith("/echo/"):
-        pattern = r"/echo/(\S+)"
-        match = re.search(pattern, path)
-        if match:
-            str_result = match.group(1)  # print(f"Match found: {str_result}")
-            return str_result
-    elif path.startswith("/user-agent"):
-        print("we got user-agent!!!!")
-
+    if request_line == "GET / HTTP/1.1":
+        return RES200
+    elif request_line.startswith("GET /echo/"):
+        str_result = get_echo_string(request_line)
+        if str_result:
+            return response(str_result)
+    elif request_line.startswith("GET /user-agent"):
+        user_agent = get_user_agent(headers)
+        return response(user_agent)
     else:
-        conn.sendall(res404)
-    conn.close()
+        return RES404
+
+
+def get_echo_string(request_line):
+    parts = request_line.split()
+    if len(parts) >= 2 and parts[0] == "GET" and parts[1].startswith("/echo/"):
+        return parts[1][len("/echo/") :]
+    return None
+
+
+def get_user_agent(headers):
+    for h in headers:
+        if h.startswith("User-Agent:"):
+            return h[len("User-Agent: ") :]
+    return ""
 
 
 def response(str_result):
-    # Gather all of the responses
     response_body = f"{str_result}".encode("utf-8")
     status_line = b"HTTP/1.1 200 OK\r\n"
     content_type = b"Content-Type: text/plain\r\n"
     content_length = f"Content-Length: {len(response_body)}\r\n".encode("utf-8")
-
-    # Create the header response
     response_headers = content_type + content_length
     response = status_line + response_headers + b"\r\n" + response_body
-
-    # return response
     return response
+
+
+def handle_connection(conn, client_address):
+    print(f"Connection from {client_address} has been established...")
+    data = conn.recv(BUFF_SZ)
+    http_request = data.decode(ENC).split("\r\n")  # bytes to list[str]
+    print(f"Request from {client_address}:\n{http_request}")
+    response = parse_request(conn, http_request)
+    print("Return value of response: ", response)
+    conn.sendall(response)
 
 
 def main():
