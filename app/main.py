@@ -14,7 +14,7 @@ def handle_connection(conn, client_address):
         response = parse_request(conn, http_request)
 
         # SEND RESPONSE TO main FUNCTION
-        # [*]
+        # ...
 
     except UnicodeDecodeError:
         print(f"Error decoding data from client {client_address}")
