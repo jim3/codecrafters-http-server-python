@@ -1,4 +1,8 @@
 import socket
+<<<<<<< Updated upstream
+=======
+import threading
+>>>>>>> Stashed changes
 
 BUFF_SZ = 1024
 ENC = "utf-8"
@@ -20,6 +24,7 @@ def get_user_agent(headers):
     return ""
 
 
+<<<<<<< Updated upstream
 def get_file_name(request_line):
     file = request_line.split()
     if len(file) >= 2 and file[0] == "GET" and file[1].startswith("/files/"):
@@ -27,6 +32,8 @@ def get_file_name(request_line):
     return None
 
 
+=======
+>>>>>>> Stashed changes
 def parse_request(http_request):
     request_line = http_request[0]
     headers = http_request[1:-2]
@@ -50,6 +57,7 @@ def parse_request(http_request):
         return RES404
 
 
+<<<<<<< Updated upstream
 def response(str_result):
     response_body = f"{str_result}".encode("utf-8")
     res_body_length = len(response_body)  # Integer representing byte length
@@ -65,21 +73,34 @@ def response(str_result):
 def handle_connection(conn, client_address):
     print(f"Connection from {client_address} has been established...")
     data = conn.recv(BUFF_SZ)
+=======
+def handle_connection(client_socket, address):
+    print(f"Connection from {address} has been established...")
+    data = client_socket.recv(BUFF_SZ)
+>>>>>>> Stashed changes
     http_request = data.decode(ENC).split("\r\n")  # bytes to list[str]
-    print(f"Request from {client_address}:\n{http_request}")
-    response = parse_request(conn, http_request)  # ->
+    print(f"Request from {address}:\n{http_request}")
+
+    response = parse_request(http_request)  # ->
     print("Return value of response: ", response)
-    conn.sendall(response)
+    client_socket.sendall(response)
 
 
 def main():
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    print("Server is listening on port 4221...")
-    while True:
-        conn, client_address = server_socket.accept()
-        print(f"Connection from {client_address} has been established.")
-        handle_connection(conn, client_address)
-        conn.close()
+    server_socket.listen()
+
+    try:
+        while True:
+            client_socket, address = server_socket.accept()
+            client_thread = threading.Thread(
+                target=handle_connection, args=(client_socket, address)
+            )
+            client_thread.start()
+    except KeyboardInterrupt:
+        print("Server is shutting down.")
+    finally:
+        server_socket.close()
 
 
 if __name__ == "__main__":
