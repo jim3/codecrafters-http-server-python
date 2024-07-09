@@ -21,11 +21,16 @@ def get_user_agent(headers):
     return ""
 
 
+def get_file_name(request_line):
+    file = request_line.split()
+    if len(file) >= 2 and file[0] == "GET" and file[1].startswith("/files/"):
+        return file[1][len("/files/") :]
+    return None
+
+
 def parse_request(http_request):
     request_line = http_request[0]
     headers = http_request[1:-2]
-    # request_lines = request_line.split("\r\n")
-    # http_method, path, _ = request_lines[0].split(" ", 2)
 
     if request_line == "GET / HTTP/1.1":
         return RES200
@@ -61,7 +66,6 @@ def handle_connection(client_socket, address):
     data = client_socket.recv(BUFF_SZ)
     http_request = data.decode(ENC).split("\r\n")  # bytes to list[str]
     print(f"Request from {address}:\n{http_request}")
-
     response = parse_request(http_request)  # ->
     print("Return value of response: ", response)
     client_socket.sendall(response)
