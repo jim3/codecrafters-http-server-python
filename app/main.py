@@ -10,62 +10,30 @@ RES200 = b"HTTP/1.1 200 OK\r\n\r\n"
 RES404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
-def response(file_content):
-    if file_content[0] is None:
-        return RES404
-    contents = file_content[0]
-    bodylen = file_content[1]
-    response_body = f"{contents}".encode("utf-8")
-    content_length = str(bodylen).encode("utf-8")  # -> bytes
-    status_line = b"HTTP/1.1 200 OK\r\n"
-    content_type = b"Content-Type: application/octet-stream\r\n"
-    response_headers = content_type + b"Content-Length: " + content_length
-    response = status_line + response_headers + b"\r\n" + b"\r\n" + response_body
-    print("Printing entire response: ", response)
-    return response  # bytes
-
-
-def parse_request(http_request, directory):
-    print("http_request: ", http_request)
-    request_line = http_request[0]
-    print("request_line: ", request_line)
-    headers = http_request[1:-2]
-    print("headers: ", headers)
-
-    if request_line == "GET / HTTP/1.1":
-        return RES200
-    elif request_line.startswith("GET /echo/"):
-        str_result = echo_string(request_line)
-        if str_result:
-            return response(str_result)
-    elif request_line.startswith("GET /user-agent"):
-        user_agent = get_user_agent(headers)
-        return response(user_agent)
-    elif request_line.startswith("GET /files/"):
-        file_name = get_file_name(request_line)
-        if file_name:
-            content = read_file(file_name, directory)
-            if content is not None:
-                return response(content)
-            else:
-                return RES404
-    else:
-        return RES404
+def build_response(content_type, content_length, content):
+    return f"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\n\r\n{content}".encode(
+        ENC
+    )
 
 
 def echo_string(request_line):
-    # content_type = "plain/text"
+    content_type = "text/plain"
     parts = request_line.split()
     if len(parts) >= 2 and parts[0] == "GET" and parts[1].startswith("/echo/"):
-        return parts[1][len("/echo/") :]
+        print("echo_string: ", parts[1][len("/echo/") :])  # content
+        content = parts[1][len("/echo/") :]
+        content_length = len(parts[1][len("/echo/") :])
+        return [content_type, content_length, content]
     return None
 
 
 def get_user_agent(headers):
-    # content_type = "plain/text"
+    content_type = "text/plain"
     for h in headers:
         if h.startswith("User-Agent:"):
-            return h[len("User-Agent: ") :]
+            content_length = len(h[len("User-Agent: ") :])
+            content = h[len("User-Agent: ") :]
+            return [content_type, content_length, content]
     return ""
 
 
@@ -82,11 +50,35 @@ def read_file(file_name, directory):
     print(f"file_path: {file_path}")  # debugging
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
-            read_data = f.read()
-            content_length = len(read_data)
-            return [read_data, content_length, content_type]
+            content = f.read()
+            content_length = len(content)
+            return [content_type, content_length, content]
     else:
         return None
+
+
+def parse_request(http_request, directory):
+    request_line = http_request[0]
+    headers = http_request[1:-2]
+    if request_line == "GET / HTTP/1.1":
+        return RES200
+    elif request_line.startswith("GET /echo/"):
+        str_result = echo_string(request_line)
+        if str_result:
+            return build_response(str_result[0], str_result[1], str_result[2])
+    elif request_line.startswith("GET /user-agent"):
+        user_agent = get_user_agent(headers)
+        return build_response(user_agent[0], user_agent[1], user_agent[2])
+    elif request_line.startswith("GET /files/"):
+        file_name = get_file_name(request_line)
+        if file_name:
+            content = read_file(file_name, directory)
+            if content is not None:
+                return build_response(content[0], content[1], content[2])
+            else:
+                return RES404
+    else:
+        return RES404
 
 
 def handle_connection(client_socket, address, directory):
