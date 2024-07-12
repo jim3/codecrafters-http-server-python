@@ -7,6 +7,7 @@ import argparse
 BUFF_SZ = 1024
 ENC = "utf-8"
 RES200 = b"HTTP/1.1 200 OK\r\n\r\n"
+RES201 = b"HTTP/1.1 201 Created\r\n\r\n"
 RES404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
@@ -57,24 +58,49 @@ def read_file(file_name, directory):
         return None
 
 
+def create_file(file_name, directory):
+    content_type = "application/octet-stream"
+    file_path = os.path.join(directory, file_name)
+    print(f"file_path_and_contents: {file_path}")
+    if os.path.exists(file_path):
+        with open(file_path, "x", encoding="uft-8") as f:
+            content = f.write()
+            content_length = len(content)
+            return [content_type, content_length, content]
+
+
 def parse_request(http_request, directory):
     request_line = http_request[0]
     headers = http_request[1:-2]
+
     if request_line == "GET / HTTP/1.1":
         return RES200
+
     elif request_line.startswith("GET /echo/"):
         str_result = echo_string(request_line)
         if str_result:
             return build_response(str_result[0], str_result[1], str_result[2])
+
     elif request_line.startswith("GET /user-agent"):
         user_agent = get_user_agent(headers)
         return build_response(user_agent[0], user_agent[1], user_agent[2])
+
     elif request_line.startswith("GET /files/"):
         file_name = get_file_name(request_line)
         if file_name:
             content = read_file(file_name, directory)
             if content is not None:
                 return build_response(content[0], content[1], content[2])
+            else:
+                return RES404
+
+    # http://localhost:4221/files/file_123
+    elif request_line.startswith("POST /files/"):
+        file_name = get_file_name(request_line)
+        if file_name:
+            req_body = create_file(file_name, directory)
+            if req_body is not None:
+                return build_response(req_body[0], req_body[1], req_body[2])
             else:
                 return RES404
     else:
@@ -84,9 +110,9 @@ def parse_request(http_request, directory):
 def handle_connection(client_socket, address, directory):
     print(f"Connection from {address} has been established...")
     data = client_socket.recv(BUFF_SZ)
-    http_request = data.decode(ENC).split("\r\n")  # bytes to list[str]
+    http_request = data.decode(ENC).split("\r\n")
     print(f"Request from {address}:\n{http_request}")
-    response = parse_request(http_request, directory)  # ->
+    response = parse_request(http_request, directory)
     print("Return value of response: ", response)
     client_socket.sendall(response)
 
