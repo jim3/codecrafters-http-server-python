@@ -83,7 +83,7 @@ def parse_request(http_request, directory):
     rbody = http_request[-1:]
     if request_line == "GET / HTTP/1.1":
         return RES200
-    elif request_line.startswith("GET /echo/"):
+    elif request_line.startswith("GET /echo"):
         str_result = echo_string(request_line)
         if str_result:
             return build_response(
@@ -95,7 +95,7 @@ def parse_request(http_request, directory):
             user_agent[0], user_agent[1], user_agent[2], user_agent[3]
         )
     # GET /files/{filename}
-    elif request_line.startswith("GET /files/"):
+    elif request_line.startswith("GET /files"):
         file_name = get_file_name(request_line)
         if file_name:
             content = read_file(file_name, directory)
@@ -104,7 +104,7 @@ def parse_request(http_request, directory):
             else:
                 return RES404
     # POST /files/{filename}
-    elif request_line.startswith("POST /files/"):
+    elif request_line.startswith("POST /files"):
         file_name = get_file_name(request_line)  # ->
         print("file_name to create: ", file_name)
         if file_name:
