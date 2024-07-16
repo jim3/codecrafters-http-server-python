@@ -28,6 +28,17 @@ def echo_string(request_line):
     return None
 
 
+def content_encoding(headers):
+    status_code = 200
+    content_type = "text/plain"
+    for h in headers:
+        if h.startswith("Content-Encoding:"):
+            content_length = len(h[len("Content-Encoding: ") :])
+            content = h[len("Content-Encoding: ") :]
+            return [status_code, content_type, content_length, content]
+    return ""
+
+
 def get_user_agent(headers):
     status_code = 200
     content_type = "text/plain"
@@ -77,18 +88,30 @@ def create_file(file_name, directory, rbody):
 
 
 def parse_request(http_request, directory):
-    print(f"HTTP Request list -> : {http_request}")
+    print(f"HTTP Request -> : {http_request}")
+
     request_line = http_request[0]
+    print(f"HTTP Request line -> : {request_line}")
+
     headers = http_request[1:-2]
+    print(f"HTTP Request headers -> : {headers}")
+    encoding = content_encoding(headers)
+    print(f"HTTP Request encoding -> : {encoding}")
+
     rbody = http_request[-1:]
+    print(f"HTTP Request body -> : {rbody}")
+
     if request_line == "GET / HTTP/1.1":
         return RES200
+    # GET /echo/{str}
     elif request_line.startswith("GET /echo"):
+        print("b4 echo_string: ", request_line)
         str_result = echo_string(request_line)
         if str_result:
             return build_response(
                 str_result[0], str_result[1], str_result[2], str_result[3]
             )
+    # GET /user-agent
     elif request_line.startswith("GET /user-agent"):
         user_agent = get_user_agent(headers)
         return build_response(
