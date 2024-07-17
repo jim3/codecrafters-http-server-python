@@ -11,10 +11,12 @@ RES201 = b"HTTP/1.1 201 Created\r\n\r\n"
 RES404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
-def build_response(status_code, content_type, content_length, content):
-    return f"HTTP/1.1 {status_code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\n\r\n{content}".encode(
-        ENC
-    )
+def build_response(status_code, content_type, content_length, content, encoding=None):
+    response = f"HTTP/1.1 {status_code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\n"
+    if encoding:
+        response += f"{encoding}\r\n"
+    response += f"\r\n{content}"
+    return response.encode(ENC)
 
 
 def echo_string(request_line):
@@ -26,17 +28,6 @@ def echo_string(request_line):
         content_length = len(parts[1][len("/echo/") :])
         return [status_code, content_type, content_length, content]
     return None
-
-
-def content_encoding(headers):
-    status_code = 200
-    content_type = "text/plain"
-    for h in headers:
-        if h.startswith("Content-Encoding:"):
-            content_length = len(h[len("Content-Encoding: ") :])
-            content = h[len("Content-Encoding: ") :]
-            return [status_code, content_type, content_length, content]
-    return ""
 
 
 def get_user_agent(headers):
@@ -87,29 +78,46 @@ def create_file(file_name, directory, rbody):
         return None
 
 
+def content_encoding(headers):
+    heading = "Content-Encoding: "
+    gzip = "gzip"
+    if any("Accept-Encoding: invalid-encoding" in h for h in headers):
+        return None
+    else:
+        for h in headers:
+            if h.startswith("Accept-Encoding:"):
+                return f"{heading}{gzip}"
+        return None
+
+
 def parse_request(http_request, directory):
-    print(f"HTTP Request -> : {http_request}")
-
+    print(f"HTTP Request: {http_request}")
     request_line = http_request[0]
-    print(f"HTTP Request line -> : {request_line}")
-
+    print(f"HTTP Request line: {request_line}")
     headers = http_request[1:-2]
-    print(f"HTTP Request headers -> : {headers}")
+    print(f"HTTP Request headers: {headers}")
+
+    user_agent = get_user_agent(headers)
     encoding = content_encoding(headers)
-    print(f"HTTP Request encoding -> : {encoding}")
-
+    print(f"HTTP Request encoding: {encoding}")
     rbody = http_request[-1:]
-    print(f"HTTP Request body -> : {rbody}")
+    print(f"HTTP Request body: {rbody}")
 
+    # GET /
     if request_line == "GET / HTTP/1.1":
         return RES200
     # GET /echo/{str}
     elif request_line.startswith("GET /echo"):
-        print("b4 echo_string: ", request_line)
         str_result = echo_string(request_line)
         if str_result:
+            str_result.append(encoding)
+            print("str_result after append: ", str_result)
             return build_response(
-                str_result[0], str_result[1], str_result[2], str_result[3]
+                str_result[0],
+                str_result[1],
+                str_result[2],
+                str_result[3],
+                str_result[4],
             )
     # GET /user-agent
     elif request_line.startswith("GET /user-agent"):
@@ -145,8 +153,8 @@ def parse_request(http_request, directory):
 def handle_connection(client_socket, address, directory):
     print(f"Connection from {address} has been established...")
     data = client_socket.recv(BUFF_SZ)
+    print(f"Raw request: {data}")
     http_request = data.decode(ENC).split("\r\n")
-    print(f"Request from {address}:\n{http_request}")  # prints address/http_request
     response = parse_request(http_request, directory)
     print("Return value of response: ", response)
     client_socket.sendall(response)
@@ -158,7 +166,6 @@ def main():
     args = parser.parse_args()
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
     server_socket.listen()
-
     try:
         while True:
             client_socket, address = server_socket.accept()
@@ -174,5 +181,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# --------------------------------------------- #
