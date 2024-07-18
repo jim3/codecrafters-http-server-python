@@ -78,16 +78,18 @@ def create_file(file_name, directory, rbody):
         return None
 
 
+# ['Host: localhost:4221', 'Accept-Encoding: encoding-1, gzip, encoding-2']
 def content_encoding(headers):
+    print("***headers*** ", headers)
     heading = "Content-Encoding: "
     gzip = "gzip"
     if any("Accept-Encoding: invalid-encoding" in h for h in headers):
         return None
-    else:
-        for h in headers:
-            if h.startswith("Accept-Encoding:"):
+    for h in headers:
+        if h.startswith("Accept-Encoding:"):
+            if gzip in h:
                 return f"{heading}{gzip}"
-        return None
+    return None
 
 
 def parse_request(http_request, directory):
@@ -102,7 +104,6 @@ def parse_request(http_request, directory):
     print(f"HTTP Request encoding: {encoding}")
     rbody = http_request[-1:]
     print(f"HTTP Request body: {rbody}")
-
     # GET /
     if request_line == "GET / HTTP/1.1":
         return RES200
