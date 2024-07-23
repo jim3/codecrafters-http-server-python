@@ -2,6 +2,9 @@ import os
 import socket
 import threading
 import argparse
+import gzip
+import io
+import subprocess
 
 
 BUFF_SZ = 1024
@@ -11,11 +14,31 @@ RES201 = b"HTTP/1.1 201 Created\r\n\r\n"
 RES404 = b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
+def compress_data(content):
+    compressed_value = gzip.compress(bytes(content, "utf-8"))
+    print("compressed_value", compressed_value)
+
+    plain_string_again = gzip.decompress(compressed_value).decode("utf-8")
+    command = f"echo -n {plain_string_again} | gzip | hexdump -C"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    print(result.stdout)
+
+    return compressed_value
+
+
 def build_response(status_code, content_type, content_length, content, encoding=None):
+    print(
+        f"HTTP/1.1 {status_code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\n"
+    )
     response = f"HTTP/1.1 {status_code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\n"
+
     if encoding:
         response += f"{encoding}\r\n"
-    response += f"\r\n{content}"
+        compressed_value = compress_data(content)
+        response += f"\r\n{compressed_value}"
+    else:
+        response += f"\r\n{content}"
+    print("build_response response", response)
     return response.encode(ENC)
 
 
@@ -28,17 +51,6 @@ def echo_string(request_line):
         content_length = len(parts[1][len("/echo/") :])
         return [status_code, content_type, content_length, content]
     return None
-
-
-def get_user_agent(headers):
-    status_code = 200
-    content_type = "text/plain"
-    for h in headers:
-        if h.startswith("User-Agent:"):
-            content_length = len(h[len("User-Agent: ") :])
-            content = h[len("User-Agent: ") :]
-            return [status_code, content_type, content_length, content]
-    return ""
 
 
 def get_file_name(request_line):
@@ -78,9 +90,19 @@ def create_file(file_name, directory, rbody):
         return None
 
 
-# ['Host: localhost:4221', 'Accept-Encoding: encoding-1, gzip, encoding-2']
+def get_user_agent(headers):
+    status_code = 200
+    content_type = "text/plain"
+    for h in headers:
+        if h.startswith("User-Agent:"):
+            content_length = len(h[len("User-Agent: ") :])
+            content = h[len("User-Agent: ") :]
+            return [status_code, content_type, content_length, content]
+    return ""
+
+
 def content_encoding(headers):
-    print("***headers*** ", headers)
+    print("@@-headers-@@ ", headers)
     heading = "Content-Encoding: "
     gzip = "gzip"
     if any("Accept-Encoding: invalid-encoding" in h for h in headers):
@@ -93,40 +115,36 @@ def content_encoding(headers):
 
 
 def parse_request(http_request, directory):
-    print(f"HTTP Request: {http_request}")
+    print(f"Clients HTTP Request: {http_request}")
     request_line = http_request[0]
-    print(f"HTTP Request line: {request_line}")
-    headers = http_request[1:-2]
-    print(f"HTTP Request headers: {headers}")
-
+    headers = http_request[1:-2]  # ['Host: localhost:4221', 'Accept-Encoding: gzip']
+    rbody = http_request[-1:]
     user_agent = get_user_agent(headers)
     encoding = content_encoding(headers)
-    print(f"HTTP Request encoding: {encoding}")
-    rbody = http_request[-1:]
-    print(f"HTTP Request body: {rbody}")
+
     # GET /
     if request_line == "GET / HTTP/1.1":
         return RES200
-    # GET /echo/{str}
+    # /echo/{str}
     elif request_line.startswith("GET /echo"):
         str_result = echo_string(request_line)
         if str_result:
             str_result.append(encoding)
-            print("str_result after append: ", str_result)
+            print("str_result.append(encoding)", str_result)
             return build_response(
                 str_result[0],
                 str_result[1],
                 str_result[2],
-                str_result[3],
+                str_result[3],  # content
                 str_result[4],
             )
-    # GET /user-agent
+    # /user-agent
     elif request_line.startswith("GET /user-agent"):
         user_agent = get_user_agent(headers)
         return build_response(
             user_agent[0], user_agent[1], user_agent[2], user_agent[3]
         )
-    # GET /files/{filename}
+    # /files/{filename}
     elif request_line.startswith("GET /files"):
         file_name = get_file_name(request_line)
         if file_name:
@@ -135,7 +153,7 @@ def parse_request(http_request, directory):
                 return build_response(content[0], content[1], content[2], content[3])
             else:
                 return RES404
-    # POST /files/{filename}
+    # /files/{filename}
     elif request_line.startswith("POST /files"):
         file_name = get_file_name(request_line)  # ->
         print("file_name to create: ", file_name)
